@@ -1,10 +1,5 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@next_public_api_url",
-    "NEXT_PUBLIC_APP_NAME": "@next_public_app_name",
-    "NEXT_PUBLIC_OPENAI_API_KEY": "@next_public_openai_api_key"
-  }
+  "outputDirectory": ".next"
 }
