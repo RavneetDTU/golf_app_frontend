@@ -1,101 +1,109 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import React, { useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import useAuthStore from '../store/useAuthStore'
+import PageWrapper from '../components/layout/PageWrapper'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import Badge from '../components/ui/Badge'
+import { Trophy, PlusSquare, Camera, ArrowRight } from 'lucide-react'
+
+export default function LandingPage() {
+  const router = useRouter()
+  const { token, isLoading, initialize } = useAuthStore()
+
+  useEffect(() => {
+    // Check if token exists on mount
+    initialize()
+  }, [initialize])
+
+  useEffect(() => {
+    // If token exists, auto-redirect to dashboard
+    if (!isLoading && token) {
+      router.replace('/dashboard')
+    }
+  }, [token, isLoading, router])
+
+  if (isLoading || token) {
+    // Render skeleton page wrapper during auth check / redirect to avoid flash
+    return (
+      <PageWrapper className="flex flex-col items-center justify-center min-h-[70vh]">
+        <div className="w-16 h-16 bg-green-light rounded-full animate-ping mb-4"></div>
+      </PageWrapper>
+    )
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <PageWrapper className="flex flex-col items-center justify-center min-h-[75vh] py-12 md:py-20">
+      {/* Hero Header */}
+      <div className="text-center max-w-2xl mx-auto mb-10 md:mb-16">
+        <span className="text-5xl md:text-6xl mb-6 inline-block animate-bounce duration-1000">⛳</span>
+        <h1 className="text-4xl md:text-6xl font-bold font-display text-green-dark tracking-tight leading-tight mb-4">
+          Golf Club Scorer
+        </h1>
+        <p className="text-lg md:text-xl text-grey-mid font-medium max-w-lg mx-auto">
+          Track your game. Own your rank. Scorecards and leaderboards crafted for golf purists.
+        </p>
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+      {/* Main Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-center w-full max-w-md mx-auto mb-16 md:mb-24">
+        <Link href="/login" className="flex-1">
+          <Button variant="primary" className="w-full text-base font-semibold py-3 h-12 shadow-sm">
+            Sign In
+          </Button>
+        </Link>
+        <Link href="/register" className="flex-1">
+          <Button variant="outline" className="w-full text-base font-semibold py-3 h-12">
+            Create Account
+          </Button>
+        </Link>
+      </div>
+
+      {/* Divider */}
+      <div className="w-full border-t border-grey-light mb-16 max-w-xl mx-auto"></div>
+
+      {/* Feature Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mx-auto">
+        {/* Card 1: Leaderboard */}
+        <Card className="flex flex-col h-full hover:shadow-lg transition-shadow">
+          <div className="w-12 h-12 rounded-lg bg-green-light flex items-center justify-center text-green-dark mb-5">
+            <Trophy className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-black mb-2">🏆 Leaderboard</h2>
+          <p className="text-sm text-grey-mid leading-relaxed">
+            Track your club ranking in real time. Compare scores with other club members on our community leaderboards.
+          </p>
+        </Card>
+
+        {/* Card 2: Scores */}
+        <Card className="flex flex-col h-full hover:shadow-lg transition-shadow">
+          <div className="w-12 h-12 rounded-lg bg-green-light flex items-center justify-center text-green-dark mb-5">
+            <PlusSquare className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-black mb-2">📊 Scores</h2>
+          <p className="text-sm text-grey-mid leading-relaxed">
+            Submit your rounds hole-by-hole. Stableford points calculate automatically as you input your shots.
+          </p>
+        </Card>
+
+        {/* Card 3: Scan Card */}
+        <Card className="flex flex-col h-full hover:shadow-lg transition-shadow relative overflow-hidden">
+          <div className="absolute top-4 right-4">
+            {/* Design system badge - rank 1 gold used sparingly */}
+            <Badge variant="rank1" className="text-[10px] py-0.5 px-2">Coming Soon</Badge>
+          </div>
+          <div className="w-12 h-12 rounded-lg bg-grey-light flex items-center justify-center text-grey-mid mb-5">
+            <Camera className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-black mb-2">📸 Scan Card</h2>
+          <p className="text-sm text-grey-mid leading-relaxed">
+            Snap a picture of your paper scorecard. Our built-in scanner will parse and auto-fill your numbers instantly.
+          </p>
+        </Card>
+      </div>
+    </PageWrapper>
+  )
 }

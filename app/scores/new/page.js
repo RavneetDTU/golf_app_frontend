@@ -1,0 +1,468 @@
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import ProtectedRoute from '../../../components/auth/ProtectedRoute'
+import PageWrapper from '../../../components/layout/PageWrapper'
+import Card from '../../../components/ui/Card'
+import Input from '../../../components/ui/Input'
+import Button from '../../../components/ui/Button'
+import Skeleton from '../../../components/ui/Skeleton'
+import EmptyState from '../../../components/ui/EmptyState'
+import HoleScoreInput from '../../../components/scores/HoleScoreInput'
+import ScanCard from '../../../components/scores/ScanCard'
+import useAuthStore from '../../../store/useAuthStore'
+import { getClubs, createGame, submitScore } from '../../../lib/api'
+import { calculateRoundPoints } from '../../../lib/stableford'
+import { savePendingScore } from '../../../lib/offline'
+import { toast } from 'react-hot-toast'
+import { ArrowLeft, ArrowRight, Save, Calendar, CheckSquare } from 'lucide-react'
+
+const DEFAULT_HOLES = [
+  { hole: 1,  par: 4, strokeIndex: 7  },
+  { hole: 2,  par: 3, strokeIndex: 15 },
+  { hole: 3,  par: 5, strokeIndex: 11 },
+  { hole: 4,  par: 4, strokeIndex: 3  },
+  { hole: 5,  par: 4, strokeIndex: 1  },
+  { hole: 6,  par: 3, strokeIndex: 17 },
+  { hole: 7,  par: 4, strokeIndex: 5  },
+  { hole: 8,  par: 5, strokeIndex: 13 },
+  { hole: 9,  par: 4, strokeIndex: 9  },
+  { hole: 10, par: 4, strokeIndex: 8  },
+  { hole: 11, par: 3, strokeIndex: 16 },
+  { hole: 12, par: 4, strokeIndex: 4  },
+  { hole: 13, par: 5, strokeIndex: 12 },
+  { hole: 14, par: 4, strokeIndex: 2  },
+  { hole: 15, par: 4, strokeIndex: 6  },
+  { hole: 16, par: 3, strokeIndex: 18 },
+  { hole: 17, par: 4, strokeIndex: 10 },
+  { hole: 18, par: 5, strokeIndex: 14 },
+]
+
+export default function NewScorePage() {
+  const router = useRouter()
+  const { user, token, initialize } = useAuthStore()
+
+  // Step state (1: Game Details, 2: Hole Scores)
+  const [step, setStep] = useState(1)
+  
+  // Form states
+  const [clubs, setClubs] = useState([])
+  const [loadingClubs, setLoadingClubs] = useState(true)
+  const [selectedClubId, setSelectedClubId] = useState('')
+  const [playedOn, setPlayedOn] = useState('')
+  const [courseName, setCourseName] = useState('')
+  const [teeColour, setTeeColour] = useState('Yellow')
+  const [notes, setNotes] = useState('')
+
+  // Scores state (array of 18 holes)
+  const [holeScores, setHoleScores] = useState(
+    DEFAULT_HOLES.map((h) => ({ ...h, shots: '' }))
+  )
+
+  const [submitting, setSubmitting] = useState(false)
+
+  // Initialize store and prepopulate today's date
+  useEffect(() => {
+    initialize()
+    const today = new Date().toISOString().split('T')[0]
+    setPlayedOn(today)
+  }, [initialize])
+
+  // Fetch joined clubs for the dropdown
+  useEffect(() => {
+    if (!token) return
+    const fetchClubsData = async () => {
+      setLoadingClubs(true)
+      try {
+        const response = await getClubs(1)
+        const allClubs = response.data?.clubs || []
+        // Only show clubs where the user is a member
+        const memberClubs = allClubs.filter((c) => c.is_member)
+        setClubs(memberClubs)
+        if (memberClubs.length > 0) {
+          setSelectedClubId(memberClubs[0].id)
+        }
+      } catch (e) {
+        console.error('Failed to load clubs list:', e)
+      } finally {
+        setLoadingClubs(false)
+      }
+    }
+    fetchClubsData()
+  }, [token])
+
+  // Compute live aggregates using client stableford calculator
+  const handicap = user?.handicap || 0.0
+  const { totalPoints, totalShots } = calculateRoundPoints(
+    holeScores.map((h) => ({
+      ...h,
+      shots: h.shots === '' ? 0 : Number(h.shots)
+    })),
+    handicap
+  )
+
+  const handleNextStep = () => {
+    if (!selectedClubId) {
+      toast.error('Please select a golf club.')
+      return
+    }
+    if (!playedOn) {
+      toast.error('Please enter the date played.')
+      return
+    }
+    setStep(2)
+  }
+
+  const handlePrevStep = () => {
+    setStep(1)
+  }
+
+  const handleHoleChange = (index, field, value) => {
+    setHoleScores((prevScores) =>
+      prevScores.map((h, i) => (i === index ? { ...h, [field]: value } : h))
+    )
+  }
+
+  const handleScanComplete = (scannedHoles) => {
+    setHoleScores((prevScores) =>
+      prevScores.map((h) => {
+        const match = scannedHoles.find((sh) => sh.hole === h.hole)
+        if (match) {
+          return {
+            ...h,
+            par: match.par !== undefined ? match.par : h.par,
+            strokeIndex: match.stroke_index !== undefined ? match.stroke_index : h.strokeIndex,
+            shots: match.shots !== undefined ? match.shots : ''
+          }
+        }
+        return h
+      })
+    )
+    toast.success('Scorecard prefilled! Please review and correct any errors.')
+  }
+
+  const handleSubmitScorecard = async () => {
+    // Validate that shots are entered
+    const emptyHoles = holeScores.filter((h) => h.shots === '')
+    if (emptyHoles.length > 0) {
+      toast.error('Please enter gross shots for all 18 holes. Enter 0 if did not complete.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      // Step A: Create Game
+      const gameResponse = await createGame({
+        club_id: selectedClubId,
+        played_on: playedOn,
+        course_name: courseName || null,
+        tee_colour: teeColour || null,
+        notes: notes || null
+      })
+      const gameId = gameResponse.data.id
+
+      // Step B: Submit Score
+      // Map strokeIndex client-side field to backend stroke_index Pydantic field
+      const formattedScores = holeScores.map((h) => ({
+        hole: h.hole,
+        par: h.par,
+        stroke_index: h.strokeIndex,
+        shots: Number(h.shots)
+      }))
+
+      const scoreResponse = await submitScore(gameId, {
+        hole_scores: formattedScores,
+        handicap_override: null
+      })
+
+      // Step C: Cache score locally in localStorage to display on personal dashboard
+      const selectedClub = clubs.find((c) => c.id === selectedClubId)
+      const selectedClubName = selectedClub ? selectedClub.name : 'Golf Club'
+      
+      const localScoresKey = `golf_scores_${user.id}`
+      const cachedScores = JSON.parse(localStorage.getItem(localScoresKey) || '[]')
+      const newLocalScore = {
+        id: scoreResponse.data.id,
+        gameId: gameId,
+        clubName: selectedClubName,
+        playedOn,
+        courseName,
+        teeColour,
+        points: scoreResponse.data.stableford_points,
+        shots: scoreResponse.data.gross_shots,
+        handicapUsed: scoreResponse.data.handicap_used,
+        holeScores: scoreResponse.data.hole_scores, // detailed scores
+        date: playedOn
+      }
+      
+      cachedScores.push(newLocalScore)
+      localStorage.setItem(localScoresKey, JSON.stringify(cachedScores))
+
+      toast.success('Scorecard submitted successfully!')
+      router.push('/dashboard')
+    } catch (err) {
+      console.error('Failed to submit scorecard:', err)
+      
+      // If it fails because of network / offline
+      if (!err.response) {
+        try {
+          const formattedScores = holeScores.map((h) => ({
+            hole: h.hole,
+            par: h.par,
+            stroke_index: h.strokeIndex,
+            shots: Number(h.shots)
+          }))
+          const selectedClub = clubs.find((c) => c.id === selectedClubId)
+          const selectedClubName = selectedClub ? selectedClub.name : 'Golf Club'
+
+          await savePendingScore({
+            club_id: selectedClubId,
+            club_name: selectedClubName,
+            played_on: playedOn,
+            course_name: courseName || null,
+            tee_colour: teeColour || null,
+            notes: notes || null,
+            hole_scores: formattedScores,
+            handicap_override: null
+          })
+
+          toast.success("You're offline. Score saved locally and will sync automatically.")
+          router.push('/dashboard')
+          return
+        } catch (dbErr) {
+          console.error('Failed to save score offline:', dbErr)
+          toast.error('Failed to save score offline.')
+        }
+      }
+
+      const message = err.response?.data?.detail || err.response?.data?.message || 'Failed to submit score. Please try again.'
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <ProtectedRoute>
+      <PageWrapper>
+        {/* Header */}
+        <div className="mb-6">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center space-x-2 text-sm text-grey-mid hover:text-black transition-colors mb-4 group cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            <span className="font-medium">Back to Dashboard</span>
+          </Link>
+          <h1 className="text-2xl md:text-3.5xl font-bold font-display text-green-dark">
+            Add Score
+          </h1>
+          <p className="text-sm text-grey-mid font-medium mt-1">
+            {step === 1 ? 'Step 1: Enter round details' : 'Step 2: Enter hole scores'}
+          </p>
+        </div>
+
+        {/* Step Indicator */}
+        <div className="flex items-center space-x-2 mb-8">
+          <span className={`text-xs font-bold px-2 py-1 rounded-full ${step === 1 ? 'bg-green-dark text-white' : 'bg-grey-light text-grey-mid'}`}>
+            1
+          </span>
+          <span className="w-8 h-0.5 bg-grey-light"></span>
+          <span className={`text-xs font-bold px-2 py-1 rounded-full ${step === 2 ? 'bg-green-dark text-white' : 'bg-grey-light text-grey-mid'}`}>
+            2
+          </span>
+        </div>
+
+        {/* STEP 1: Game Details Form */}
+        {step === 1 && (
+          <div className="max-w-xl">
+            <Card className="shadow-sm border border-grey-light p-6 md:p-8">
+              {loadingClubs ? (
+                <div className="space-y-4">
+                  <Skeleton variant="text" className="h-6 w-1/4" />
+                  <Skeleton variant="rect" className="h-10 rounded" />
+                </div>
+              ) : clubs.length === 0 ? (
+                <EmptyState
+                  title="Must Join a Club First"
+                  description="You cannot submit scores until you are a member of at least one club."
+                  actionLabel="Browse Clubs"
+                  onActionClick={() => router.push('/clubs')}
+                />
+              ) : (
+                <div className="space-y-5">
+                  {/* Club Select */}
+                  <div>
+                    <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                      Select Golf Club
+                    </label>
+                    <select
+                      value={selectedClubId}
+                      onChange={(e) => setSelectedClubId(e.target.value)}
+                      className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
+                    >
+                      {clubs.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Date Input */}
+                  <div>
+                    <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                      Date Played
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={playedOn}
+                        onChange={(e) => setPlayedOn(e.target.value)}
+                        className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Course Name */}
+                  <Input
+                    label="Course Name (optional)"
+                    type="text"
+                    placeholder="e.g. West Course, Championship Loop"
+                    value={courseName}
+                    onChange={(e) => setCourseName(e.target.value)}
+                  />
+
+                  {/* Tee Colour Select */}
+                  <div>
+                    <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                      Tee Colour (optional)
+                    </label>
+                    <select
+                      value={teeColour}
+                      onChange={(e) => setTeeColour(e.target.value)}
+                      className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
+                    >
+                      <option value="Yellow">Yellow</option>
+                      <option value="White">White</option>
+                      <option value="Blue">Blue</option>
+                      <option value="Red">Red</option>
+                      <option value="Black">Black</option>
+                    </select>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                      Notes (optional)
+                    </label>
+                    <textarea
+                      placeholder="e.g. Weather conditions, playing partners..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={3}
+                      className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none"
+                    />
+                  </div>
+
+                  {/* Next Step Button */}
+                  <Button
+                    variant="primary"
+                    onClick={handleNextStep}
+                    className="w-full mt-4 flex items-center justify-center space-x-2 text-base font-semibold py-3 h-11"
+                  >
+                    <span>Next: Enter Scores</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* STEP 2: Hole Scores Table */}
+        {step === 2 && (
+          <div className="space-y-6">
+            {/* Header info */}
+            <Card className="bg-off-white border-grey-light p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <p className="text-xs font-semibold text-grey-mid uppercase tracking-wider">
+                  Calculation Baseline
+                </p>
+                <p className="text-sm font-semibold text-black mt-0.5">
+                  Handicap: {handicap.toFixed(1)} (used for Stableford points calculation)
+                </p>
+              </div>
+              
+              <Button
+                variant="outline"
+                onClick={handlePrevStep}
+                className="h-8 py-0 px-3 min-h-0 text-xs flex items-center gap-1.5"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Change Details</span>
+              </Button>
+            </Card>
+
+            {/* Scorecard Camera Scanner */}
+            <ScanCard onScanComplete={handleScanComplete} />
+
+            {/* Scorecard Input Table */}
+            <div className="overflow-x-auto border border-grey-light rounded-lg bg-white shadow-xs">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-off-white border-b border-grey-light text-grey-mid uppercase text-[10px] font-bold tracking-wider">
+                    <th className="py-2.5 px-3 text-center w-16">Hole</th>
+                    <th className="py-2.5 px-3 text-center w-20">Par</th>
+                    <th className="py-2.5 px-3 text-center w-20">SI</th>
+                    <th className="py-2.5 px-3 text-center w-28">Shots</th>
+                    <th className="py-2.5 px-3 text-center w-20">Allowance</th>
+                    <th className="py-2.5 px-3 text-center w-24">Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {holeScores.map((holeData, idx) => (
+                    <HoleScoreInput
+                      key={holeData.hole}
+                      holeData={holeData}
+                      handicap={handicap}
+                      onShotsChange={(val) => handleHoleChange(idx, 'shots', val)}
+                      onParChange={(val) => handleHoleChange(idx, 'par', val)}
+                      onSiChange={(val) => handleHoleChange(idx, 'strokeIndex', val)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Running Totals Bar & Submit */}
+            <Card className="bg-green-light/10 border-green-mid/20 p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="text-center md:text-left">
+                <p className="text-xs font-semibold text-grey-mid uppercase tracking-wide">
+                  Calculated Running Total
+                </p>
+                <p className="text-lg md:text-xl font-bold text-black mt-0.5">
+                  Total:{' '}
+                  <span className="numeral-mono">{totalShots}</span> shots ·{' '}
+                  <span className="numeral-mono text-green-dark">{totalPoints}</span> pts
+                </p>
+              </div>
+
+              <Button
+                variant="primary"
+                loading={submitting}
+                onClick={handleSubmitScorecard}
+                className="w-full md:w-auto px-8 py-3 text-base font-semibold h-11 flex items-center justify-center space-x-2"
+              >
+                <CheckSquare className="w-5 h-5" />
+                <span>Submit Scorecard</span>
+              </Button>
+            </Card>
+          </div>
+        )}
+      </PageWrapper>
+    </ProtectedRoute>
+  )
+}
