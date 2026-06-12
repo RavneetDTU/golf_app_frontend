@@ -17,7 +17,7 @@ import { getClubs, createGame, submitScore, updateProfile } from '../../../lib/a
 import { calculateRoundPoints } from '../../../lib/stableford'
 import { savePendingScore } from '../../../lib/offline'
 import { toast } from 'react-hot-toast'
-import { ArrowLeft, ArrowRight, Save, Calendar, CheckSquare } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Save, Calendar, CheckSquare, Pencil, Check } from 'lucide-react'
 
 const DEFAULT_HOLES = [
   { hole: 1,  par: 4, strokeIndex: 7  },
@@ -48,15 +48,18 @@ export default function NewScorePage() {
   const [step, setStep] = useState(1)
 
   // Handicap states
+  const [isEditingHandicap, setIsEditingHandicap] = useState(false)
+  const [handicapValue, setHandicapValue] = useState(null)
   const [handicapInput, setHandicapInput] = useState('')
   const [handicapError, setHandicapError] = useState('')
 
-  // Sync handicapInput with user.handicap once user is hydrated
+  // Sync handicap states once user is hydrated
   useEffect(() => {
-    if (user?.handicap !== undefined && handicapInput === '') {
+    if (user?.handicap !== undefined && handicapValue === null) {
+      setHandicapValue(user.handicap)
       setHandicapInput(user.handicap.toString())
     }
-  }, [user])
+  }, [user, handicapValue])
   
   // Form states
   const [clubs, setClubs] = useState([])
@@ -105,8 +108,7 @@ export default function NewScorePage() {
   }, [token])
 
   // Compute live aggregates using client stableford calculator
-  const parsedHandicapInput = parseFloat(handicapInput)
-  const currentHandicap = !isNaN(parsedHandicapInput) ? parsedHandicapInput : (user?.handicap || 0.0)
+  const currentHandicap = handicapValue !== null ? handicapValue : (user?.handicap || 0.0)
   const { totalPoints, totalShots } = calculateRoundPoints(
     holeScores.map((h) => ({
       ...h,
@@ -129,6 +131,21 @@ export default function NewScorePage() {
     }
   }
 
+  const handleSaveHandicapLocal = () => {
+    if (handicapInput === '') {
+      setHandicapError('Handicap is required')
+      return
+    }
+    const parsed = parseFloat(handicapInput)
+    if (isNaN(parsed) || parsed < 0 || parsed > 54) {
+      setHandicapError('Handicap must be between 0 and 54')
+      return
+    }
+    setHandicapValue(parsed)
+    setHandicapError('')
+    setIsEditingHandicap(false)
+  }
+
   const handleNextStep = () => {
     if (!selectedClubId) {
       toast.error('Please select a golf club.')
@@ -141,7 +158,13 @@ export default function NewScorePage() {
     setStep(2)
   }
 
-  const handlePrevStep = () => {
+  const handleBackToDetails = () => {
+    if (isEditingHandicap) {
+      // Discard edit: reset handicapInput to current saved handicapValue
+      setHandicapInput((handicapValue !== null ? handicapValue : (user?.handicap || 0.0)).toString())
+      setHandicapError('')
+      setIsEditingHandicap(false)
+    }
     setStep(1)
   }
 
@@ -178,17 +201,22 @@ export default function NewScorePage() {
     }
 
     // Validate handicap
-    if (handicapInput === '') {
+    const finalHandicapStr = isEditingHandicap ? handicapInput : (handicapValue !== null ? handicapValue.toString() : (user?.handicap || 0.0).toString())
+    if (finalHandicapStr === '') {
       setHandicapError('Handicap is required')
       toast.error('Handicap is required')
       return
     }
-    const parsedHandicap = parseFloat(handicapInput)
+    const parsedHandicap = parseFloat(finalHandicapStr)
     if (isNaN(parsedHandicap) || parsedHandicap < 0 || parsedHandicap > 54) {
       setHandicapError('Handicap must be between 0 and 54')
       toast.error('Handicap must be between 0 and 54')
       return
     }
+
+    // Save final handicap values to local state and exit edit mode
+    setHandicapValue(parsedHandicap)
+    setIsEditingHandicap(false)
 
     setSubmitting(true)
     try {
@@ -213,13 +241,13 @@ export default function NewScorePage() {
 
       const scoreResponse = await submitScore(gameId, {
         hole_scores: formattedScores,
-        handicap_override: currentHandicap
+        handicap_override: parsedHandicap
       })
 
       // Step C: Update profile with new handicap silently
       let profileUpdated = true
       try {
-        const profileResponse = await updateProfile({ handicap: currentHandicap })
+        const profileResponse = await updateProfile({ handicap: parsedHandicap })
         useAuthStore.getState().updateUser(profileResponse.data)
       } catch (profileErr) {
         console.error('Failed to update profile handicap:', profileErr)
@@ -278,7 +306,7 @@ export default function NewScorePage() {
             tee_colour: teeColour || null,
             notes: notes || null,
             hole_scores: formattedScores,
-            handicap_override: currentHandicap
+            handicap_override: parsedHandicap
           })
 
           toast.success("You're offline. Score saved locally and will sync automatically.")
@@ -438,43 +466,65 @@ export default function NewScorePage() {
         {/* STEP 2: Hole Scores Table */}
         {step === 2 && (
           <div className="space-y-6">
-            {/* Handicap For Round Card */}
-            <Card className="bg-white border border-grey-light p-5 shadow-xs">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="w-full max-w-sm">
-                  <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
-                    Your Handicap For This Round
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={54}
-                    step={0.1}
-                    value={handicapInput}
-                    onChange={(e) => handleHandicapChange(e.target.value)}
-                    className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
-                  />
-                  <p className="text-xs text-grey-mid mt-1.5 flex items-center gap-1">
-                    <span>ⓘ</span>
-                    <span>Updating this will also update your profile handicap</span>
-                  </p>
-                  {handicapError && (
-                    <span className="text-xs text-red-soft mt-1 block">
-                      {handicapError}
+            {/* Subtle Step 2 Navigation and Handicap Row */}
+            <div className="flex items-center justify-between text-xs text-grey-mid py-1">
+              <button
+                type="button"
+                onClick={handleBackToDetails}
+                className="flex items-center gap-1 hover:text-black transition-colors cursor-pointer text-grey-mid bg-transparent border-0 p-0"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to details</span>
+              </button>
+              
+              <div className="flex items-center gap-1.5 font-medium relative">
+                <span>Handicap:</span>
+                {!isEditingHandicap ? (
+                  <>
+                    <span className="text-black font-semibold numeral-mono">
+                      {currentHandicap.toFixed(1)}
                     </span>
-                  )}
-                </div>
-
-                <Button
-                  variant="outline"
-                  onClick={handlePrevStep}
-                  className="h-9 py-0 px-3 min-h-0 text-xs flex items-center gap-1.5 self-end md:self-auto"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Change Details</span>
-                </Button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingHandicap(true)
+                        setHandicapInput(currentHandicap.toString())
+                        setHandicapError('')
+                      }}
+                      className="p-1 hover:bg-grey-light/40 rounded transition-colors text-grey-mid hover:text-black cursor-pointer bg-transparent border-0 flex items-center justify-center p-0.5"
+                      title="Edit Handicap"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="number"
+                      min={0}
+                      max={54}
+                      step={0.1}
+                      value={handicapInput}
+                      onChange={(e) => handleHandicapChange(e.target.value)}
+                      className="w-[60px] bg-white text-black border border-grey-light rounded px-1.5 py-0.5 text-center text-xs focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-7"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveHandicapLocal}
+                      className="p-1 hover:bg-grey-light/40 rounded transition-colors text-green-dark hover:text-green-mid cursor-pointer bg-transparent border-0 flex items-center justify-center p-0.5"
+                      title="Save Handicap"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+                {handicapError && (
+                  <span className="absolute top-full right-0 text-[10px] text-red-soft mt-0.5 whitespace-nowrap bg-white px-1 shadow-xs border border-grey-light/40 rounded z-10">
+                    {handicapError}
+                  </span>
+                )}
               </div>
-            </Card>
+            </div>
 
             {/* Scorecard Camera Scanner */}
             <ScanCard onScanComplete={handleScanComplete} />
