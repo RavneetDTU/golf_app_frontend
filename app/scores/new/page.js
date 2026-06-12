@@ -13,7 +13,7 @@ import EmptyState from '../../../components/ui/EmptyState'
 import HoleScoreInput from '../../../components/scores/HoleScoreInput'
 import ScanCard from '../../../components/scores/ScanCard'
 import useAuthStore from '../../../store/useAuthStore'
-import { getClubs, createGame, submitScore } from '../../../lib/api'
+import { getClubs, createGame, submitScore, updateProfile } from '../../../lib/api'
 import { calculateRoundPoints } from '../../../lib/stableford'
 import { savePendingScore } from '../../../lib/offline'
 import { toast } from 'react-hot-toast'
@@ -46,6 +46,17 @@ export default function NewScorePage() {
 
   // Step state (1: Game Details, 2: Hole Scores)
   const [step, setStep] = useState(1)
+
+  // Handicap states
+  const [handicapInput, setHandicapInput] = useState('')
+  const [handicapError, setHandicapError] = useState('')
+
+  // Sync handicapInput with user.handicap once user is hydrated
+  useEffect(() => {
+    if (user?.handicap !== undefined && handicapInput === '') {
+      setHandicapInput(user.handicap.toString())
+    }
+  }, [user])
   
   // Form states
   const [clubs, setClubs] = useState([])
@@ -94,14 +105,29 @@ export default function NewScorePage() {
   }, [token])
 
   // Compute live aggregates using client stableford calculator
-  const handicap = user?.handicap || 0.0
+  const parsedHandicapInput = parseFloat(handicapInput)
+  const currentHandicap = !isNaN(parsedHandicapInput) ? parsedHandicapInput : (user?.handicap || 0.0)
   const { totalPoints, totalShots } = calculateRoundPoints(
     holeScores.map((h) => ({
       ...h,
       shots: h.shots === '' ? 0 : Number(h.shots)
     })),
-    handicap
+    currentHandicap
   )
+
+  const handleHandicapChange = (val) => {
+    setHandicapInput(val)
+    if (val === '') {
+      setHandicapError('Handicap is required')
+    } else {
+      const parsed = parseFloat(val)
+      if (isNaN(parsed) || parsed < 0 || parsed > 54) {
+        setHandicapError('Handicap must be between 0 and 54')
+      } else {
+        setHandicapError('')
+      }
+    }
+  }
 
   const handleNextStep = () => {
     if (!selectedClubId) {
@@ -151,6 +177,19 @@ export default function NewScorePage() {
       return
     }
 
+    // Validate handicap
+    if (handicapInput === '') {
+      setHandicapError('Handicap is required')
+      toast.error('Handicap is required')
+      return
+    }
+    const parsedHandicap = parseFloat(handicapInput)
+    if (isNaN(parsedHandicap) || parsedHandicap < 0 || parsedHandicap > 54) {
+      setHandicapError('Handicap must be between 0 and 54')
+      toast.error('Handicap must be between 0 and 54')
+      return
+    }
+
     setSubmitting(true)
     try {
       // Step A: Create Game
@@ -174,10 +213,20 @@ export default function NewScorePage() {
 
       const scoreResponse = await submitScore(gameId, {
         hole_scores: formattedScores,
-        handicap_override: null
+        handicap_override: currentHandicap
       })
 
-      // Step C: Cache score locally in localStorage to display on personal dashboard
+      // Step C: Update profile with new handicap silently
+      let profileUpdated = true
+      try {
+        const profileResponse = await updateProfile({ handicap: currentHandicap })
+        useAuthStore.getState().updateUser(profileResponse.data)
+      } catch (profileErr) {
+        console.error('Failed to update profile handicap:', profileErr)
+        profileUpdated = false
+      }
+
+      // Step D: Cache score locally in localStorage to display on personal dashboard
       const selectedClub = clubs.find((c) => c.id === selectedClubId)
       const selectedClubName = selectedClub ? selectedClub.name : 'Golf Club'
       
@@ -200,7 +249,11 @@ export default function NewScorePage() {
       cachedScores.push(newLocalScore)
       localStorage.setItem(localScoresKey, JSON.stringify(cachedScores))
 
-      toast.success('Scorecard submitted successfully!')
+      if (profileUpdated) {
+        toast.success('Scorecard submitted successfully!')
+      } else {
+        toast.error('Score saved. Handicap update failed — please update manually from dashboard')
+      }
       router.push('/dashboard')
     } catch (err) {
       console.error('Failed to submit scorecard:', err)
@@ -225,7 +278,7 @@ export default function NewScorePage() {
             tee_colour: teeColour || null,
             notes: notes || null,
             hole_scores: formattedScores,
-            handicap_override: null
+            handicap_override: currentHandicap
           })
 
           toast.success("You're offline. Score saved locally and will sync automatically.")
@@ -385,25 +438,42 @@ export default function NewScorePage() {
         {/* STEP 2: Hole Scores Table */}
         {step === 2 && (
           <div className="space-y-6">
-            {/* Header info */}
-            <Card className="bg-off-white border-grey-light p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div>
-                <p className="text-xs font-semibold text-grey-mid uppercase tracking-wider">
-                  Calculation Baseline
-                </p>
-                <p className="text-sm font-semibold text-black mt-0.5">
-                  Handicap: {handicap.toFixed(1)} (used for Stableford points calculation)
-                </p>
+            {/* Handicap For Round Card */}
+            <Card className="bg-white border border-grey-light p-5 shadow-xs">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="w-full max-w-sm">
+                  <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                    Your Handicap For This Round
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={54}
+                    step={0.1}
+                    value={handicapInput}
+                    onChange={(e) => handleHandicapChange(e.target.value)}
+                    className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
+                  />
+                  <p className="text-xs text-grey-mid mt-1.5 flex items-center gap-1">
+                    <span>ⓘ</span>
+                    <span>Updating this will also update your profile handicap</span>
+                  </p>
+                  {handicapError && (
+                    <span className="text-xs text-red-soft mt-1 block">
+                      {handicapError}
+                    </span>
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  onClick={handlePrevStep}
+                  className="h-9 py-0 px-3 min-h-0 text-xs flex items-center gap-1.5 self-end md:self-auto"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Change Details</span>
+                </Button>
               </div>
-              
-              <Button
-                variant="outline"
-                onClick={handlePrevStep}
-                className="h-8 py-0 px-3 min-h-0 text-xs flex items-center gap-1.5"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Change Details</span>
-              </Button>
             </Card>
 
             {/* Scorecard Camera Scanner */}
@@ -427,7 +497,7 @@ export default function NewScorePage() {
                     <HoleScoreInput
                       key={holeData.hole}
                       holeData={holeData}
-                      handicap={handicap}
+                      handicap={currentHandicap}
                       onShotsChange={(val) => handleHoleChange(idx, 'shots', val)}
                       onParChange={(val) => handleHoleChange(idx, 'par', val)}
                       onSiChange={(val) => handleHoleChange(idx, 'strokeIndex', val)}

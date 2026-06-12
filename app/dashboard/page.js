@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import ProtectedRoute from '../../components/auth/ProtectedRoute'
 import PageWrapper from '../../components/layout/PageWrapper'
-import StatsBar from '../../components/dashboard/StatsBar'
 import ScoreCard from '../../components/dashboard/ScoreCard'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -12,8 +11,9 @@ import Skeleton from '../../components/ui/Skeleton'
 import EmptyState from '../../components/ui/EmptyState'
 import Button from '../../components/ui/Button'
 import useAuthStore from '../../store/useAuthStore'
-import { getClubs, getMyRank, getMyScores } from '../../lib/api'
-import { Trophy, Plus, PlusCircle, ArrowRight, X } from 'lucide-react'
+import { getClubs, getMyRank, getMyScores, updateProfile } from '../../lib/api'
+import { Trophy, Plus, PlusCircle, ArrowRight, X, Pencil } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 export default function DashboardPage() {
   const { user, initialize } = useAuthStore()
@@ -23,6 +23,11 @@ export default function DashboardPage() {
   const [joinedClubs, setJoinedClubs] = useState([])
   const [loading, setLoading] = useState(true)
   const [greeting, setGreeting] = useState('Welcome')
+
+  // Handicap editing states
+  const [isEditingHandicap, setIsEditingHandicap] = useState(false)
+  const [handicapInput, setHandicapInput] = useState('')
+  const [handicapError, setHandicapError] = useState('')
   
   // Recent scores pagination
   const [recentScores, setRecentScores] = useState([])
@@ -38,6 +43,42 @@ export default function DashboardPage() {
     totalPoints: 0,
     roundsPlayed: 0
   })
+
+  const handleHandicapChange = (val) => {
+    setHandicapInput(val)
+    if (val === '') {
+      setHandicapError('Handicap is required')
+    } else {
+      const parsed = parseFloat(val)
+      if (isNaN(parsed) || parsed < 0 || parsed > 54) {
+        setHandicapError('Handicap must be between 0 and 54')
+      } else {
+        setHandicapError('')
+      }
+    }
+  }
+
+  const handleSaveHandicap = async () => {
+    if (handicapInput === '') {
+      setHandicapError('Handicap is required')
+      return
+    }
+    const parsedValue = parseFloat(handicapInput)
+    if (isNaN(parsedValue) || parsedValue < 0 || parsedValue > 54) {
+      setHandicapError('Handicap must be between 0 and 54')
+      return
+    }
+
+    try {
+      const response = await updateProfile({ handicap: parsedValue })
+      useAuthStore.getState().updateUser(response.data)
+      setIsEditingHandicap(false)
+      toast.success(`Handicap updated to ${parsedValue.toFixed(1)}`)
+    } catch (e) {
+      console.error('Failed to update handicap:', e)
+      toast.error('Failed to update handicap. Please try again.')
+    }
+  }
 
   // Initialize Auth
   useEffect(() => {
@@ -168,12 +209,101 @@ export default function DashboardPage() {
           <p className="text-sm text-grey-mid font-medium">Ready for your next round?</p>
         </div>
 
-        {/* Stats Bar Component */}
-        <StatsBar
-          totalPoints={stats.totalPoints}
-          roundsPlayed={stats.roundsPlayed}
-          handicap={user?.handicap || 0.0}
-        />
+        {/* Stats Bar (Inlined and Handicap is Editable) */}
+        <div className="grid grid-cols-3 gap-3 md:gap-6 w-full my-6">
+          {/* Total Points */}
+          <Card className="flex flex-col justify-between items-center text-center p-3 md:p-5 border border-grey-light bg-off-white/30">
+            <p className="text-[10px] md:text-xs font-semibold text-grey-mid uppercase tracking-wider mb-1">
+              Total Points
+            </p>
+            <p className="text-lg md:text-2xl font-bold numeral-mono text-green-dark mt-0.5">
+              {stats.totalPoints}
+              <span className="text-[10px] md:text-xs font-semibold text-grey-mid uppercase lowercase tracking-normal font-sans ml-0.5">
+                {' pts'}
+              </span>
+            </p>
+          </Card>
+
+          {/* Rounds Played */}
+          <Card className="flex flex-col justify-between items-center text-center p-3 md:p-5 border border-grey-light bg-off-white/30">
+            <p className="text-[10px] md:text-xs font-semibold text-grey-mid uppercase tracking-wider mb-1">
+              Rounds Played
+            </p>
+            <p className="text-lg md:text-2xl font-bold numeral-mono text-green-dark mt-0.5">
+              {stats.roundsPlayed}
+              <span className="text-[10px] md:text-xs font-semibold text-grey-mid uppercase lowercase tracking-normal font-sans ml-0.5">
+                {' rds'}
+              </span>
+            </p>
+          </Card>
+
+          {/* Handicap Stat Card (Editable) */}
+          <Card className="flex flex-col justify-between items-center text-center p-3 md:p-5 border border-grey-light bg-off-white/30 relative">
+            {!isEditingHandicap ? (
+              <div className="flex flex-col justify-between items-center h-full w-full">
+                <p className="text-[10px] md:text-xs font-semibold text-grey-mid uppercase tracking-wider mb-1">
+                  Handicap
+                </p>
+                <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                  <p className="text-lg md:text-2xl font-bold numeral-mono text-green-dark">
+                    {(typeof user?.handicap === 'number' ? user.handicap : parseFloat(user?.handicap || 0)).toFixed(1)}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setIsEditingHandicap(true)
+                      setHandicapInput((user?.handicap || 0.0).toString())
+                      setHandicapError('')
+                    }}
+                    className="p-1 hover:bg-grey-light/40 rounded transition-colors text-grey-mid hover:text-black cursor-pointer flex items-center justify-center"
+                    title="Edit Handicap"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full flex flex-col items-center justify-between h-full">
+                <p className="text-[10px] md:text-xs font-semibold text-grey-mid uppercase tracking-wider">
+                  Update Handicap
+                </p>
+                <input
+                  type="number"
+                  min={0}
+                  max={54}
+                  step={0.1}
+                  value={handicapInput}
+                  onChange={(e) => handleHandicapChange(e.target.value)}
+                  className="w-20 text-center bg-white text-black border border-grey-light rounded px-2 py-1 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-8 my-1"
+                />
+                {handicapError && (
+                  <span className="text-[10px] text-red-soft block mb-1">
+                    {handicapError}
+                  </span>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingHandicap(false)
+                      setHandicapInput((user?.handicap || 0.0).toString())
+                      setHandicapError('')
+                    }}
+                    className="h-7 px-2 text-[10px] font-semibold text-black bg-off-white hover:bg-grey-light border border-grey-light rounded-[4px] transition-colors cursor-pointer flex items-center justify-center"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveHandicap}
+                    className="h-7 px-2 text-[10px] font-semibold text-white bg-green-dark hover:bg-green-mid rounded-[4px] transition-colors cursor-pointer flex items-center justify-center"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
           {/* Left Column: My Clubs */}
