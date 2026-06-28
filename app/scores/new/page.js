@@ -18,27 +18,7 @@ import { calculateRoundPoints } from '../../../lib/stableford'
 import { savePendingScore } from '../../../lib/offline'
 import { toast } from 'react-hot-toast'
 import { ArrowLeft, ArrowRight, Save, Calendar, CheckSquare, Pencil, Check } from 'lucide-react'
-
-const DEFAULT_HOLES = [
-  { hole: 1,  par: 4, strokeIndex: 7  },
-  { hole: 2,  par: 3, strokeIndex: 15 },
-  { hole: 3,  par: 5, strokeIndex: 11 },
-  { hole: 4,  par: 4, strokeIndex: 3  },
-  { hole: 5,  par: 4, strokeIndex: 1  },
-  { hole: 6,  par: 3, strokeIndex: 17 },
-  { hole: 7,  par: 4, strokeIndex: 5  },
-  { hole: 8,  par: 5, strokeIndex: 13 },
-  { hole: 9,  par: 4, strokeIndex: 9  },
-  { hole: 10, par: 4, strokeIndex: 8  },
-  { hole: 11, par: 3, strokeIndex: 16 },
-  { hole: 12, par: 4, strokeIndex: 4  },
-  { hole: 13, par: 5, strokeIndex: 12 },
-  { hole: 14, par: 4, strokeIndex: 2  },
-  { hole: 15, par: 4, strokeIndex: 6  },
-  { hole: 16, par: 3, strokeIndex: 18 },
-  { hole: 17, par: 4, strokeIndex: 10 },
-  { hole: 18, par: 5, strokeIndex: 14 },
-]
+import { COURSE_HOLES } from '@/lib/courseData'
 
 export default function NewScorePage() {
   const router = useRouter()
@@ -72,7 +52,7 @@ export default function NewScorePage() {
 
   // Scores state (array of 18 holes)
   const [holeScores, setHoleScores] = useState(
-    DEFAULT_HOLES.map((h) => ({ ...h, shots: '' }))
+    COURSE_HOLES.map((h) => ({ ...h, shots: '' }))
   )
 
   const [submitting, setSubmitting] = useState(false)
@@ -112,6 +92,7 @@ export default function NewScorePage() {
   const { totalPoints, totalShots } = calculateRoundPoints(
     holeScores.map((h) => ({
       ...h,
+      strokeIndex: h.si,
       shots: h.shots === '' ? 0 : Number(h.shots)
     })),
     currentHandicap
@@ -181,8 +162,6 @@ export default function NewScorePage() {
         if (match) {
           return {
             ...h,
-            par: match.par !== undefined ? match.par : h.par,
-            strokeIndex: match.stroke_index !== undefined ? match.stroke_index : h.strokeIndex,
             shots: match.shots !== undefined ? match.shots : ''
           }
         }
@@ -235,7 +214,7 @@ export default function NewScorePage() {
       const formattedScores = holeScores.map((h) => ({
         hole: h.hole,
         par: h.par,
-        stroke_index: h.strokeIndex,
+        stroke_index: h.si,
         shots: Number(h.shots)
       }))
 
@@ -292,7 +271,7 @@ export default function NewScorePage() {
           const formattedScores = holeScores.map((h) => ({
             hole: h.hole,
             par: h.par,
-            stroke_index: h.strokeIndex,
+            stroke_index: h.si,
             shots: Number(h.shots)
           }))
           const selectedClub = clubs.find((c) => c.id === selectedClubId)
@@ -549,8 +528,6 @@ export default function NewScorePage() {
                       holeData={holeData}
                       handicap={currentHandicap}
                       onShotsChange={(val) => handleHoleChange(idx, 'shots', val)}
-                      onParChange={(val) => handleHoleChange(idx, 'par', val)}
-                      onSiChange={(val) => handleHoleChange(idx, 'strokeIndex', val)}
                     />
                   ))}
                 </tbody>

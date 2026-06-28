@@ -10,10 +10,11 @@ export default function HoleScoreInput({
   onParChange,
   onSiChange
 }) {
-  const { hole, par, strokeIndex, shots } = holeData
+  const { hole, par, si, strokeIndex, shots } = holeData
+  const activeSi = si !== undefined ? si : strokeIndex
   
   // Calculate stroke allowance and live points for this specific hole
-  const allowance = getStrokeAllowance(handicap, strokeIndex)
+  const allowance = getStrokeAllowance(handicap, activeSi)
   const points = shots > 0 ? calculateHolePoints(shots, par, allowance) : 0
 
   return (
@@ -23,34 +24,14 @@ export default function HoleScoreInput({
         {hole}
       </td>
       
-      {/* Par Input (Editable) */}
-      <td className="py-2.5 px-3 text-center">
-        <input
-          type="number"
-          min="3"
-          max="5"
-          value={par || ''}
-          onChange={(e) => {
-            const val = parseInt(e.target.value) || 0
-            onParChange(Math.max(3, Math.min(5, val)))
-          }}
-          className="w-12 text-center py-1 border border-grey-light bg-white text-black rounded-[4px] text-xs font-semibold focus:border-green-dark outline-none h-8"
-        />
+      {/* Par Display (Read-Only) */}
+      <td className="py-2.5 px-3 text-center text-sm font-semibold text-black">
+        <span>{par}</span>
       </td>
       
-      {/* Stroke Index Input (Editable) */}
-      <td className="py-2.5 px-3 text-center">
-        <input
-          type="number"
-          min="1"
-          max="18"
-          value={strokeIndex || ''}
-          onChange={(e) => {
-            const val = parseInt(e.target.value) || 0
-            onSiChange(Math.max(1, Math.min(18, val)))
-          }}
-          className="w-12 text-center py-1 border border-grey-light bg-white text-black rounded-[4px] text-xs focus:border-green-dark outline-none h-8"
-        />
+      {/* Stroke Index Display (Read-Only) */}
+      <td className="py-2.5 px-3 text-center text-sm text-grey-mid">
+        <span>{activeSi}</span>
       </td>
       
       {/* Shots Input (Editable) */}
