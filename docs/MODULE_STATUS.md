@@ -22,12 +22,15 @@
 | Landing | `/` | `app/page.js` | ✅ CERTIFIED | Phase 1 | Auto-redirects authenticated users to `/dashboard`. Shows feature cards. |
 | Login | `/login` | `app/(auth)/login/page.js` | ✅ CERTIFIED | Phase 1 | Uses react-hook-form. Redirects if already authenticated. |
 | Register | `/register` | `app/(auth)/register/page.js` | ✅ CERTIFIED | Phase 1 | Accepts full_name, email, password, handicap (optional, 0–54). |
-| Dashboard | `/dashboard` | `app/dashboard/page.js` | ✅ CERTIFIED | Phase 1 + Handicap Patch | Shows joined clubs, rank, total points, rounds played, recent scores. Inline handicap edit. Score details modal. |
+| Dashboard | `/dashboard` | `app/dashboard/page.js` | ✅ CERTIFIED | Phase 1 + Handicap Patch + Phase 3 | Shows joined clubs, rank, total points, rounds played, recent scores. Inline handicap edit. Score details modal. |
 | Clubs | `/clubs` | `app/clubs/page.js` | ✅ CERTIFIED | Phase 1 | Paginated club list with local search. Join/Leave with optimistic UI. |
 | Leaderboard | `/clubs/[clubId]/leaderboard` | `app/clubs/[clubId]/leaderboard/page.js` | ✅ CERTIFIED | Phase 1 | All-time club leaderboard. My rank banner. Paginated. |
 | Add Score | `/scores/new` | `app/scores/new/page.js` | ✅ CERTIFIED | Phase 1 + Handicap Patch | 2-step wizard: game details then 18-hole scorecard. Inline handicap edit. GPT-4o scan integration. Offline fallback to IndexedDB. |
 | Pending Approvals | `/pending-approvals` | `app/pending-approvals/page.js` | ✅ CERTIFIED | Phase 2 | Review, approve, reject, or edit-and-resubmit scorecards submitted by other players on your behalf. |
-| Admin Panel | `/admin` | `app/admin/page.js` | ✅ CERTIFIED | Phase 2 | Hidden from nav — direct URL only. Tabs: Users, Clubs, Disputes, Stats. Redirects non-admin users to `/dashboard`. |
+| Admin Panel | `/admin` | `app/admin/page.js` | ✅ CERTIFIED | Phase 2 + Phase 3 | Hidden from nav — direct URL only. Tabs: Users, Clubs, Disputes, Stats. Redirects non-admin users to `/dashboard`. |
+| Admin Scores | `/admin/scores` | `app/admin/scores/page.js` | ✅ CERTIFIED | Phase 3 | Scores list with club filter, player search, deleted toggle, pagination. |
+| Admin Add Score | `/admin/scores/add` | `app/admin/scores/add/page.js` | ✅ CERTIFIED | Phase 3 | Add score wizard: player select, game details, scorecard input, submit. |
+| Admin Edit Score | `/admin/scores/[scoreId]/edit` | `app/admin/scores/[scoreId]/edit/page.js` | ✅ CERTIFIED | Phase 3 | Edit scorecard, adjust handicap, submit audit note, soft-delete score. |
 
 ---
 

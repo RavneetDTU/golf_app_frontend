@@ -359,10 +359,16 @@ export default function AdminPage() {
 
         {/* Tab Headers */}
         <div className="flex border-b border-grey-light mb-8 space-x-2 overflow-x-auto pb-1">
-          {['users', 'clubs', 'disputes', 'stats'].map((tab) => (
+          {['users', 'clubs', 'scores', 'disputes', 'stats'].map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                if (tab === 'scores') {
+                  router.push('/admin/scores')
+                } else {
+                  setActiveTab(tab)
+                }
+              }}
               className={`py-2 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 outline-none whitespace-nowrap cursor-pointer ${
                 activeTab === tab
                   ? 'border-green-dark text-green-dark'

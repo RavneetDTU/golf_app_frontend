@@ -360,6 +360,48 @@ The axios instance in `lib/api.js` handles errors globally before they reach the
 **Called From:** [UNKNOWN — function exists in `lib/api.js` but not confirmed called from admin page in current code]
 **Error Handling:** Global interceptor
 
+### adminListScores(params)
+
+**HTTP:** `GET /admin/scores`
+**Auth:** Yes (admin only)
+**Params:** `{ club_id?: string, player_id?: string, include_deleted?: boolean, page?: number, per_page?: number }`
+**Returns:** `{ scores: [...], total: number, has_more: boolean }`
+**Called From:** `app/admin/scores/page.js`, `app/admin/scores/[scoreId]/edit/page.js`
+**Error Handling:** Global interceptor
+
+---
+
+### adminAddScore(data)
+
+**HTTP:** `POST /admin/scores`
+**Auth:** Yes (admin only)
+**Params:** `{ player_id: string, club_id: string, game_date: string, course_name: string, tee_colour: string, notes?: string, handicap: number, hole_scores: Array<{ hole: number, par: number, stroke_index: number, shots: number }> }`
+**Returns:** `{ score_id, game_id, game_created: boolean, total_points, total_gross, success: boolean }`
+**Called From:** `app/admin/scores/add/page.js`
+**Error Handling:** Custom page-level handling with toast alerts
+
+---
+
+### adminEditScore(scoreId, data)
+
+**HTTP:** `PATCH /admin/scores/:scoreId`
+**Auth:** Yes (admin only)
+**Params:** `scoreId: string`, `{ hole_scores: Array<{ hole, par, stroke_index, shots }>, gross_shots: number, stableford_points: number, admin_note: string }`
+**Returns:** Updated score object
+**Called From:** `app/admin/scores/[scoreId]/edit/page.js`
+**Error Handling:** Custom page-level handling with toast alerts
+
+---
+
+### adminDeleteScore(scoreId, deleteNote)
+
+**HTTP:** `DELETE /admin/scores/:scoreId`
+**Auth:** Yes (admin only)
+**Params:** `scoreId: string`, `{ delete_note: string }`
+**Returns:** Success message or details of delete
+**Called From:** `app/admin/scores/[scoreId]/edit/page.js`
+**Error Handling:** Custom page-level handling with toast alerts
+
 ---
 
 ### syncOfflineScores(items)

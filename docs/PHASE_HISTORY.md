@@ -158,5 +158,38 @@ Total Par: 72
 **Note:** Existing submitted scores are NOT retroactively recalculated.
 Only new scores submitted after this patch will use the correct values.
 
-**Next Phase Triggered:** Admin Score Management (new frontend phase)
+**Next Phase Triggered:** Frontend Phase 3 — Admin Score Management UI
+
+---
+
+## Frontend Phase 3 — Admin Score Management UI
+
+**Status:** ✅ CERTIFIED
+**Certified By:** Ravneet
+**Date:** 28 June 2026
+
+**Scope — What Was Built:**
+- /admin/scores — scores list with club filter, player search, deleted toggle, pagination
+- /admin/scores/add — 3-step wizard: player+game details → scorecard → submit
+- /admin/scores/[scoreId]/edit — full scorecard edit with mandatory audit note + delete
+- /admin/page.js — Scores tab/link added
+- /dashboard/page.js — "✏️ Edited by admin" chip + audit note modal on edited scores
+- lib/api.js — 4 new admin score API functions added
+
+**Pages/Components Certified:**
+- app/admin/scores/page.js
+- app/admin/scores/add/page.js
+- app/admin/scores/[scoreId]/edit/page.js
+- app/admin/page.js (modified)
+- app/dashboard/page.js (modified)
+- lib/api.js (modified — 4 new functions)
+
+**Certificate Notes:**
+- Par and SI on admin scorecard entry reuse COURSE_HOLES from lib/courseData.js (read-only)
+- Option C game auto-detection handled entirely on backend — frontend sends player+club+date only
+- Soft-delete is reversible via direct DB query but no UI restore feature in this phase
+- Audit note visibility on dashboard depends on score history API returning admin_edit_note field
+
+**Next Phase Triggered:** None — pending next feature discussion.
+
 

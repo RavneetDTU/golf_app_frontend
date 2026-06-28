@@ -161,3 +161,30 @@ Correct values: SI=[5,9,11,17,7,13,1,15,3,6,18,16,4,12,2,10,8,14], Par 72.
 
 **Tags:** [scoring] [stableford] [data-correction]
 
+---
+
+## CF-011: hole_scores Field Name — "shots" not "gross_score"
+
+**Symptom:** POST /admin/scores returns 422 — "Field required" for "shots" on every hole.
+**Root Cause:** The backend HoleScoreInput schema uses "shots" as the field name for
+gross score per hole. The frontend prompt originally used "gross_score" which does not
+match the certified schema.
+**Fix Applied:** hole_scores payload uses "shots" in all admin score submission calls.
+Confirmed via live smoke test — correct field name is "shots".
+**Affected Files:** lib/api.js (adminAddScore, adminEditScore)
+**Test Added:** No — verified via live smoke test on backend.
+**Tags:** [api] [admin] [scoring]
+
+---
+
+## CF-010: axios DELETE with Request Body
+
+**Symptom:** DELETE /admin/scores/{id} returns 422 — delete_note not received by backend.
+**Root Cause:** axios.delete() does not send a body by default. Must use
+{ data: { delete_note: ... } } as the config parameter, not the second argument.
+**Fix Applied:** adminDeleteScore uses api.delete(url, { data: { delete_note } })
+**Affected Files:** lib/api.js
+**Test Added:** No — verified manually.
+**Tags:** [api] [admin]
+
+

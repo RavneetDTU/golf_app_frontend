@@ -394,6 +394,10 @@ export default function DashboardPage() {
               />
             ) : (
               <div className="space-y-3">
+                {/* TODO: Show '✏️ Edited by admin' chip on scores that have been admin-edited.
+                    Blocked: GET /scores/my does not return admin_edit_note, admin_edited_by_name,
+                    or admin_edited_at. Requires backend to add these fields to MyScoreResponse schema.
+                    Tracked as backlog item — do not implement until backend is updated. */}
                 {recentScores.map((score, idx) => (
                   <ScoreCard
                     key={idx}
