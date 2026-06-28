@@ -252,7 +252,7 @@ export default function AdminEditScorePage() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: Read Only Info + Audit Notes Form */}
+          {/* Section 1: Score Info card — read-only header */}
           <div className="lg:col-span-4 space-y-6">
             <Card className="p-5 border border-grey-light bg-white shadow-xs space-y-4">
               <h3 className="text-sm font-bold text-black border-b border-grey-light pb-2">
@@ -296,8 +296,59 @@ export default function AdminEditScorePage() {
                 </p>
               </Card>
             )}
+          </div>
 
-            {/* Audit edit notes form */}
+          {/* Section 2: 18-hole scorecard table */}
+          <div className="lg:col-span-8 space-y-6">
+            <div className="overflow-x-auto border border-grey-light rounded-lg bg-white shadow-xs">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-off-white border-b border-grey-light text-grey-mid uppercase text-[10px] font-bold tracking-wider">
+                    <th className="py-2.5 px-3 text-center w-16">Hole</th>
+                    <th className="py-2.5 px-3 text-center w-20">Par</th>
+                    <th className="py-2.5 px-3 text-center w-20">SI</th>
+                    <th className="py-2.5 px-3 text-center w-28">Shots</th>
+                    <th className="py-2.5 px-3 text-center w-20">Allowance</th>
+                    <th className="py-2.5 px-3 text-center w-24">Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {holeScores.map((holeData, idx) => (
+                    <HoleScoreInput
+                      key={holeData.hole}
+                      holeData={holeData}
+                      handicap={currentHandicap}
+                      onShotsChange={(val) => handleHoleChange(idx, 'shots', val)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Live Stableford Points comparisons */}
+            <Card className="bg-green-light/10 border-green-mid/20 p-5">
+              <p className="text-xs font-semibold text-grey-mid uppercase tracking-wide">
+                Stableford Points Progression
+              </p>
+              <p className="text-lg md:text-xl font-bold text-black mt-1">
+                Original Points: <span className="numeral-mono text-grey-mid">{originalPoints} pts</span>
+                {originalPoints !== totalPoints ? (
+                  <>
+                    <span className="text-grey-mid mx-1.5">&rarr;</span>
+                    New Calculated: <span className="numeral-mono text-green-dark">{totalPoints} pts</span>
+                  </>
+                ) : (
+                  <span className="text-xs text-grey-mid font-medium ml-2">(Unchanged)</span>
+                )}
+              </p>
+              <p className="text-xs text-grey-mid font-medium mt-1">
+                New Shots: <span className="numeral-mono font-bold text-black">{totalShots} total shots</span>
+              </p>
+            </Card>
+          </div>
+
+          {/* Section 3: Audit edit notes form (Save Adjustments) */}
+          <div className="lg:col-span-4 space-y-6">
             <Card className="p-5 border border-grey-light bg-white shadow-xs space-y-4">
               <h3 className="text-sm font-bold text-black border-b border-grey-light pb-2">
                 Save Adjustments
@@ -352,55 +403,6 @@ export default function AdminEditScorePage() {
                   <span>Delete Scorecard</span>
                 </button>
               )}
-            </Card>
-          </div>
-
-          {/* Right Column: Scorecard Entry Table */}
-          <div className="lg:col-span-8 space-y-6">
-            <div className="overflow-x-auto border border-grey-light rounded-lg bg-white shadow-xs">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-off-white border-b border-grey-light text-grey-mid uppercase text-[10px] font-bold tracking-wider">
-                    <th className="py-2.5 px-3 text-center w-16">Hole</th>
-                    <th className="py-2.5 px-3 text-center w-20">Par</th>
-                    <th className="py-2.5 px-3 text-center w-20">SI</th>
-                    <th className="py-2.5 px-3 text-center w-28">Shots</th>
-                    <th className="py-2.5 px-3 text-center w-20">Allowance</th>
-                    <th className="py-2.5 px-3 text-center w-24">Points</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {holeScores.map((holeData, idx) => (
-                    <HoleScoreInput
-                      key={holeData.hole}
-                      holeData={holeData}
-                      handicap={currentHandicap}
-                      onShotsChange={(val) => handleHoleChange(idx, 'shots', val)}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Live Stableford Points comparisons */}
-            <Card className="bg-green-light/10 border-green-mid/20 p-5">
-              <p className="text-xs font-semibold text-grey-mid uppercase tracking-wide">
-                Stableford Points Progression
-              </p>
-              <p className="text-lg md:text-xl font-bold text-black mt-1">
-                Original Points: <span className="numeral-mono text-grey-mid">{originalPoints} pts</span>
-                {originalPoints !== totalPoints ? (
-                  <>
-                    <span className="text-grey-mid mx-1.5">&rarr;</span>
-                    New Calculated: <span className="numeral-mono text-green-dark">{totalPoints} pts</span>
-                  </>
-                ) : (
-                  <span className="text-xs text-grey-mid font-medium ml-2">(Unchanged)</span>
-                )}
-              </p>
-              <p className="text-xs text-grey-mid font-medium mt-1">
-                New Shots: <span className="numeral-mono font-bold text-black">{totalShots} total shots</span>
-              </p>
             </Card>
           </div>
         </div>

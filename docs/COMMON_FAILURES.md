@@ -187,4 +187,16 @@ Confirmed via live smoke test — correct field name is "shots".
 **Test Added:** No — verified manually.
 **Tags:** [api] [admin]
 
+---
+
+## CF-012: Edit Score Page — Wrong Section Order on Mobile
+**Symptom:** On mobile, handicap and audit note fields appeared before the
+18-hole scorecard table, pushing the scorecard below the fold.
+**Root Cause:** JSX sections were ordered: Score Info → Save Adjustments → Scorecard.
+**Fix Applied:** Reordered to: Score Info → Scorecard → Save Adjustments.
+**Affected Files:** app/admin/scores/[scoreId]/edit/page.js
+**Test Added:** No — verified manually on mobile viewport.
+**Tags:** [ui] [mobile] [admin]
+
+
 

@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import useAuthStore from '../../store/useAuthStore'
-import { Menu, ChevronDown, LogOut, ShieldAlert } from 'lucide-react'
+import { Menu, ChevronDown, LogOut, ShieldAlert, Shield } from 'lucide-react'
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -92,6 +92,17 @@ export default function Navbar() {
                       )}
                     </div>
                     
+                    {user.is_admin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setDropdownOpen(false)}
+                        className="w-full px-4 py-2.5 text-sm text-black hover:bg-off-white flex items-center space-x-2 transition-colors border-b border-grey-light"
+                      >
+                        <Shield className="w-4 h-4 text-green-dark" />
+                        <span>Admin Panel</span>
+                      </Link>
+                    )}
+
                     <button
                       onClick={handleLogout}
                       className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-off-white flex items-center space-x-2 transition-colors"
