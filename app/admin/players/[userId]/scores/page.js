@@ -100,9 +100,11 @@ export default function PlayerRoundsDetailPage({ params }) {
       setRowError('Round number must be at least 1')
       return
     }
-    if (isNaN(newShots) || newShots < 1) {
-      setRowError('Shots must be at least 1')
-      return
+    if (editGrossShots.trim() !== '') {
+      if (isNaN(newShots) || newShots < 1) {
+        setRowError('Shots must be at least 1')
+        return
+      }
     }
     if (isNaN(newPoints) || newPoints < 0) {
       setRowError('Points must be at least 0')
@@ -112,8 +114,12 @@ export default function PlayerRoundsDetailPage({ params }) {
     setSavingRowId(score.id)
     setRowError('')
     try {
+      // gross_shots: send null explicitly when admin cleared the field,
+      // or the integer value when provided. null tells the API to clear it.
+      const grossShotsPayload = editGrossShots.trim() === '' ? null : newShots
+
       const payload = {
-        gross_shots: newShots,
+        gross_shots: grossShotsPayload,
         stableford_points: newPoints
       }
 
@@ -134,8 +140,8 @@ export default function PlayerRoundsDetailPage({ params }) {
             ? {
                 ...s,
                 round_number: updatedData.round_number ?? newRoundNum,
-                gross_shots: updatedData.gross_shots ?? newShots,
-                total_gross: updatedData.gross_shots ?? newShots,
+                gross_shots: updatedData.gross_shots ?? grossShotsPayload,
+                total_gross: updatedData.gross_shots ?? grossShotsPayload,
                 stableford_points: updatedData.stableford_points ?? newPoints,
                 total_points: updatedData.stableford_points ?? newPoints,
                 admin_edit_note: updatedData.admin_edit_note || s.admin_edit_note,
@@ -215,7 +221,9 @@ export default function PlayerRoundsDetailPage({ params }) {
                 {scores.map((score) => {
                   const isEditing = editingId === score.id
                   const roundVal = score.round_number || '-'
-                  const shotsVal = score.total_gross ?? score.gross_shots ?? '-'
+                  const shotsVal = (score.total_gross ?? score.gross_shots) != null
+                    ? (score.total_gross ?? score.gross_shots)
+                    : '–'
                   const pointsVal = score.total_points ?? score.stableford_points ?? '-'
 
                   return (

@@ -303,7 +303,7 @@ export default function AdminScoresPage() {
 
                         {/* Gross */}
                         <td className="py-3 px-4 text-center text-sm font-semibold text-black numeral-mono">
-                          {score.gross_shots}
+                         {score.gross_shots != null ? score.gross_shots : '–'}
                         </td>
 
                         {/* HCP */}

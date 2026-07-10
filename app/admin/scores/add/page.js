@@ -175,15 +175,7 @@ export default function AdminAddScorePage() {
       toast.error('Round number must be 1 or greater.')
       return
     }
-    if (!quickGrossShots) {
-      toast.error('Please enter total shots.')
-      return
-    }
-    const shotsNum = parseInt(quickGrossShots, 10)
-    if (isNaN(shotsNum) || shotsNum <= 0) {
-      toast.error('Total shots must be greater than 0.')
-      return
-    }
+
     if (quickStablefordPoints === '') {
       toast.error('Please enter total Stableford points.')
       return
@@ -200,8 +192,11 @@ export default function AdminAddScorePage() {
         player_id: selectedPlayer.id,
         club_id: selectedClubId,
         round_number: rndNum,
-        gross_shots: shotsNum,
         stableford_points: pointsNum,
+      }
+      const shotsNum = parseInt(quickGrossShots, 10)
+      if (!isNaN(shotsNum) && shotsNum >= 1) {
+        payload.gross_shots = shotsNum
       }
       const response = await adminSubmitQuickScore(payload)
       const data = response.data
@@ -467,7 +462,7 @@ export default function AdminAddScorePage() {
                     placeholder="e.g. 1"
                   />
                   <Input
-                    label="Total Shots"
+                    label="Total Shots (optional)"
                     type="number"
                     min="1"
                     value={quickGrossShots}

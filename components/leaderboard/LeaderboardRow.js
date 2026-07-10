@@ -64,7 +64,7 @@ export default function LeaderboardRow({ entry, isCurrentUser, isAdminContext = 
       {isAdminContext && (
         <td className="py-3 px-4 text-center">
           <span className="numeral-mono text-sm leading-none font-semibold text-black">
-            {entry.total_gross_shots}
+            {entry.total_gross_shots != null ? entry.total_gross_shots : '–'}
           </span>
         </td>
       )}

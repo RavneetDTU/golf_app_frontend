@@ -475,7 +475,7 @@ Unhandled server errors return HTTP 500 with a generic message — no stack trac
 |---|---|---|---|
 | `club_id` | UUID | Yes | User must be a member of this club |
 | `round_number` | int | Yes | >= 1 |
-| `gross_shots` | int | Yes | > 0 |
+| `gross_shots` | int | No | > 0 (can be omitted; if omitted, no gross shots value is stored) |
 | `stableford_points` | int | Yes | >= 0 |
 | `confirm_overwrite` | bool | No (default: false) | Set to true to overwrite existing score |
 
@@ -919,6 +919,7 @@ All admin endpoints require the authenticated user to have `is_admin=true`. Non-
 - If `round_number` is provided and different from the current round, the score is reassigned to the game with the new round number (creating a new game with today's date if it doesn't exist).
 - If reassignment conflicts with an existing score for the player in that game, returns HTTP 409.
 - On save: `admin_edit_note`, `admin_edited_by`, and `admin_edited_at` are populated in the `scores` table.
+- Sending `gross_shots: null` explicitly in the request body will clear the stored value of gross shots. Omitting the `gross_shots` key entirely will leave the stored value untouched.
 
 ---
 

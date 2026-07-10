@@ -68,7 +68,6 @@ export default function NewScorePage() {
   const handleQuickScoreSubmit = async (confirmOverwrite = false) => {
     // Validate inputs locally
     const roundNum = parseInt(quickRoundNumber)
-    const totalShotsVal = parseInt(quickTotalShots)
     const totalPointsVal = parseInt(quickTotalPoints)
 
     if (!selectedClubId) {
@@ -77,10 +76,6 @@ export default function NewScorePage() {
     }
     if (isNaN(roundNum) || roundNum < 1) {
       toast.error('Round number must be at least 1')
-      return
-    }
-    if (isNaN(totalShotsVal) || totalShotsVal < 1) {
-      toast.error('Total shots must be at least 1')
       return
     }
     if (isNaN(totalPointsVal) || totalPointsVal < 0) {
@@ -93,9 +88,13 @@ export default function NewScorePage() {
       const payload = {
         club_id: selectedClubId,
         round_number: roundNum,
-        gross_shots: totalShotsVal,
         stableford_points: totalPointsVal,
         confirm_overwrite: confirmOverwrite
+      }
+      // Only include gross_shots if the user filled it in
+      const totalShotsVal = parseInt(quickTotalShots)
+      if (!isNaN(totalShotsVal) && totalShotsVal >= 1) {
+        payload.gross_shots = totalShotsVal
       }
 
       const response = await submitQuickScore(payload)
@@ -472,9 +471,9 @@ export default function NewScorePage() {
                   {/* Shots & Points in a side-by-side grid */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
-                        Total Shots
-                      </label>
+                       <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                         Total Shots <span className="font-normal normal-case text-grey-mid/70">(optional)</span>
+                       </label>
                       <input
                         type="number"
                         min="1"
