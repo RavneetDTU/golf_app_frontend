@@ -13,7 +13,7 @@ import EmptyState from '../../../components/ui/EmptyState'
 import HoleScoreInput from '../../../components/scores/HoleScoreInput'
 import ScanCard from '../../../components/scores/ScanCard'
 import useAuthStore from '../../../store/useAuthStore'
-import { getClubs, createGame, submitScore, updateProfile } from '../../../lib/api'
+import { getClubs, createGame, submitScore, updateProfile, submitQuickScore } from '../../../lib/api'
 import { calculateRoundPoints } from '../../../lib/stableford'
 import { savePendingScore } from '../../../lib/offline'
 import { toast } from 'react-hot-toast'
@@ -56,6 +56,89 @@ export default function NewScorePage() {
   )
 
   const [submitting, setSubmitting] = useState(false)
+
+  // Quick Score States
+  const [quickRoundNumber, setQuickRoundNumber] = useState('')
+  const [quickTotalShots, setQuickTotalShots] = useState('')
+  const [quickTotalPoints, setQuickTotalPoints] = useState('')
+  const [quickSubmitting, setQuickSubmitting] = useState(false)
+  const [showOverwritePopup, setShowOverwritePopup] = useState(false)
+  const [conflictData, setConflictData] = useState(null)
+
+  const handleQuickScoreSubmit = async (confirmOverwrite = false) => {
+    // Validate inputs locally
+    const roundNum = parseInt(quickRoundNumber)
+    const totalShotsVal = parseInt(quickTotalShots)
+    const totalPointsVal = parseInt(quickTotalPoints)
+
+    if (!selectedClubId) {
+      toast.error('Please select a golf club.')
+      return
+    }
+    if (isNaN(roundNum) || roundNum < 1) {
+      toast.error('Round number must be at least 1')
+      return
+    }
+    if (isNaN(totalShotsVal) || totalShotsVal < 1) {
+      toast.error('Total shots must be at least 1')
+      return
+    }
+    if (isNaN(totalPointsVal) || totalPointsVal < 0) {
+      toast.error('Total points must be at least 0')
+      return
+    }
+
+    setQuickSubmitting(true)
+    try {
+      const payload = {
+        club_id: selectedClubId,
+        round_number: roundNum,
+        gross_shots: totalShotsVal,
+        stableford_points: totalPointsVal,
+        confirm_overwrite: confirmOverwrite
+      }
+
+      const response = await submitQuickScore(payload)
+      const data = response.data
+      
+      const message = data.game_created
+        ? `Round ${data.round_number} created`
+        : `Score added to Round ${data.round_number}`
+      toast.success(message)
+
+      // Clear inputs and popup state
+      setQuickRoundNumber('')
+      setQuickTotalShots('')
+      setQuickTotalPoints('')
+      setShowOverwritePopup(false)
+      setConflictData(null)
+
+      // Redirect to dashboard
+      router.push('/dashboard')
+    } catch (err) {
+      console.error('Failed to submit quick score:', err)
+      
+      if (err.response && err.response.status === 409) {
+        // Conflict
+        const conflict = err.response.data?.detail
+        if (conflict) {
+          setConflictData({
+            existing_shots: conflict.gross_shots,
+            existing_points: conflict.stableford_points,
+            round_number: conflict.round_number
+          })
+          setShowOverwritePopup(true)
+        } else {
+          toast.error(err.response.data?.message || 'Conflict occurred.')
+        }
+      } else {
+        const errMsg = err.response?.data?.detail || 'Failed to submit quick score.'
+        toast.error(errMsg)
+      }
+    } finally {
+      setQuickSubmitting(false)
+    }
+  }
 
   // Initialize store and prepopulate today's date
   useEffect(() => {
@@ -337,7 +420,100 @@ export default function NewScorePage() {
 
         {/* STEP 1: Game Details Form */}
         {step === 1 && (
-          <div className="max-w-xl">
+          <div className="max-w-xl space-y-6">
+            {/* Quick Score Card */}
+            {clubs.length > 0 && (
+              <Card className="shadow-sm border border-green-mid/20 p-6 md:p-8 bg-green-light/5">
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="text-lg">⚡</span>
+                  <h2 className="text-lg font-bold text-green-dark">Quick Score</h2>
+                </div>
+                <p className="text-xs text-grey-mid font-medium mb-5">
+                  Already worked out your total? Skip the hole-by-hole entry.
+                </p>
+
+                <div className="space-y-4">
+                  {/* Club Select (only show if user belongs to multiple clubs) */}
+                  {clubs.length > 1 ? (
+                    <div>
+                      <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                        Club
+                      </label>
+                      <select
+                        value={selectedClubId}
+                        onChange={(e) => setSelectedClubId(e.target.value)}
+                        className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
+                      >
+                        {clubs.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+
+                  {/* Round Number */}
+                  <div>
+                    <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                      Round Number
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      placeholder="e.g. 4"
+                      value={quickRoundNumber}
+                      onChange={(e) => setQuickRoundNumber(e.target.value)}
+                      className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
+                    />
+                  </div>
+
+                  {/* Shots & Points in a side-by-side grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                        Total Shots
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="e.g. 92"
+                        value={quickTotalShots}
+                        onChange={(e) => setQuickTotalShots(e.target.value)}
+                        className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-grey-mid uppercase tracking-wider block mb-1.5">
+                        Total Points
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="e.g. 36"
+                        value={quickTotalPoints}
+                        onChange={(e) => setQuickTotalPoints(e.target.value)}
+                        className="w-full bg-white text-black border border-grey-light rounded-[8px] px-3.5 py-2.5 text-sm focus:border-green-dark focus:ring-1 focus:ring-green-dark outline-none h-11"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Submit button */}
+                  <Button
+                    variant="primary"
+                    loading={quickSubmitting}
+                    onClick={() => handleQuickScoreSubmit(false)}
+                    className="w-full mt-2 flex items-center justify-center space-x-2 text-base font-semibold py-3 h-11 bg-green-dark hover:bg-green-mid"
+                  >
+                    <span>Submit Score</span>
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             <Card className="shadow-sm border border-grey-light p-6 md:p-8">
               {loadingClubs ? (
                 <div className="space-y-4">
@@ -556,6 +732,38 @@ export default function NewScorePage() {
                 <CheckSquare className="w-5 h-5" />
                 <span>Submit Scorecard</span>
               </Button>
+            </Card>
+          </div>
+        )}
+
+        {/* Overwrite Confirmation Popup */}
+        {showOverwritePopup && conflictData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/55 backdrop-blur-xs" onClick={() => setShowOverwritePopup(false)}></div>
+            <Card className="relative w-full max-w-sm bg-white shadow-2xl z-10 p-6 border border-grey-light rounded-[12px]">
+              <h3 className="text-base font-bold text-black mb-2">Score already exists</h3>
+              <p className="text-sm text-grey-mid font-medium mb-6">
+                Round {conflictData.round_number} already has a score:<br />
+                <span className="font-semibold text-black numeral-mono">{conflictData.existing_shots}</span> shots · <span className="font-semibold text-green-dark numeral-mono">{conflictData.existing_points}</span> pts
+              </p>
+              <div className="flex justify-end space-x-3">
+                <Button
+                  variant="secondary"
+                  disabled={quickSubmitting}
+                  onClick={() => setShowOverwritePopup(false)}
+                  className="h-9 min-h-0 text-xs px-4"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  loading={quickSubmitting}
+                  onClick={() => handleQuickScoreSubmit(true)}
+                  className="h-9 min-h-0 text-xs px-5 bg-red-soft hover:bg-red-soft/90 border-red-soft text-white font-semibold flex items-center justify-center"
+                >
+                  Overwrite
+                </Button>
+              </div>
             </Card>
           </div>
         )}

@@ -190,6 +190,39 @@ Only new scores submitted after this patch will use the correct values.
 - Soft-delete is reversible via direct DB query but no UI restore feature in this phase
 - Audit note visibility on dashboard depends on score history API returning admin_edit_note field
 
+**Next Phase Triggered:** Frontend Phase 4 — Quick Score Card + Admin Fast-Edit Screens
+
+---
+
+## Frontend Phase 4 — Quick Score Card + Admin Fast-Edit Screens
+
+**Status:** ✅ CERTIFIED
+**Certified By:** Ravneet
+**Date:** 10 July 2026
+
+**Scope — What Was Built:**
+- Quick Score Card on `/scores/new` — Number inputs (Round, Shots, Points) with duplicate conflict overwrite flow. Hides club selector if user is a member of exactly one club.
+- Admin Club Leaderboard at `/admin/clubs/[clubId]/leaderboard` — Leaderboard view in admin context displaying "Total Shots" column and supporting row click navigation.
+- Admin Player Rounds Detail and Fast-Edit at `/admin/players/[userId]/scores` — Displays player's scores across all clubs with inline fast-editing capability (Round, Shots, Points). Bypasses detailed audit note verification.
+- `lib/api.js` updates — Added `submitQuickScore` and `adminGetPlayerScores` helper methods.
+- Leaderboard component updates — Updated `LeaderboardTable` and `LeaderboardRow` to support `isAdminContext` parameter (ensuring public leaderboard is completely unchanged).
+- Admin clubs tab action — Added Trophy action icon in `AdminClubRow` to navigate to the new admin leaderboard.
+
+**Pages/Components Certified:**
+- `app/admin/clubs/[clubId]/leaderboard/page.js`
+- `app/admin/players/[userId]/scores/page.js`
+- `app/scores/new/page.js` (modified)
+- `components/admin/AdminClubRow.js` (modified)
+- `components/leaderboard/LeaderboardTable.js` (modified)
+- `components/leaderboard/LeaderboardRow.js` (modified)
+- `lib/api.js` (modified)
+
+**Certificate Notes:**
+- "Recent rounds" hint line was skipped on the Quick Score card due to the lack of a lightweight backend endpoint for listing club games/rounds.
+- Inline fast-edits on `/admin/players/[userId]/scores` omit the `admin_note` parameter from the payload, letting the backend handle the default fast-edit value and avoiding `admin_note` min_length validation errors.
+- Webpack build validation was fully verified with a successful production bundle creation (`npm run build`).
+
 **Next Phase Triggered:** None — pending next feature discussion.
+
 
 

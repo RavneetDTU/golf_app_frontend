@@ -31,6 +31,8 @@
 | Admin Scores | `/admin/scores` | `app/admin/scores/page.js` | ✅ CERTIFIED | Phase 3 | Scores list with club filter, player search, deleted toggle, pagination. |
 | Admin Add Score | `/admin/scores/add` | `app/admin/scores/add/page.js` | ✅ CERTIFIED | Phase 3 | Add score wizard: player select, game details, scorecard input, submit. |
 | Admin Edit Score | `/admin/scores/[scoreId]/edit` | `app/admin/scores/[scoreId]/edit/page.js` | ✅ CERTIFIED | Phase 3 | Edit scorecard, adjust handicap, submit audit note, soft-delete score. |
+| Admin Club Leaderboard | `/admin/clubs/[clubId]/leaderboard` | `app/admin/clubs/[clubId]/leaderboard/page.js` | ✅ CERTIFIED | Phase 4 | Club leaderboard in admin context. |
+| Admin Player Rounds Detail | `/admin/players/[userId]/scores` | `app/admin/players/[userId]/scores/page.js` | ✅ CERTIFIED | Phase 4 | Player rounds list and inline fast-edit table. |
 
 ---
 

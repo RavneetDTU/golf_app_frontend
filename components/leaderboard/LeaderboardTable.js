@@ -4,7 +4,7 @@ import React from 'react'
 import LeaderboardRow from './LeaderboardRow'
 import useAuthStore from '../../store/useAuthStore'
 
-export default function LeaderboardTable({ entries = [] }) {
+export default function LeaderboardTable({ entries = [], isAdminContext = false }) {
   const { user } = useAuthStore()
 
   return (
@@ -14,6 +14,7 @@ export default function LeaderboardTable({ entries = [] }) {
           <tr className="bg-off-white border-b border-grey-light text-grey-mid uppercase text-[10px] font-bold tracking-wider">
             <th className="py-3 px-4 text-center w-12">#</th>
             <th className="py-3 px-4">Player</th>
+            {isAdminContext && <th className="py-3 px-4 text-center w-24">Shots</th>}
             <th className="py-3 px-4 text-center w-20">Pts</th>
             <th className="py-3 px-4 text-center w-24">Rounds</th>
           </tr>
@@ -24,6 +25,7 @@ export default function LeaderboardTable({ entries = [] }) {
               key={entry.user_id}
               entry={entry}
               isCurrentUser={user?.id === entry.user_id}
+              isAdminContext={isAdminContext}
             />
           ))}
         </tbody>

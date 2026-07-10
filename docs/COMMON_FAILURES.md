@@ -198,5 +198,21 @@ Confirmed via live smoke test — correct field name is "shots".
 **Test Added:** No — verified manually on mobile viewport.
 **Tags:** [ui] [mobile] [admin]
 
+---
+
+## CF-013: Admin Score Fast-Edit API Field Requirements
+
+**Symptom:** Inline fast-edits in `/admin/players/[userId]/scores` fail with HTTP 422.
+
+**Root Cause:** The backend `PATCH /admin/scores/{score_id}` expects a minimum 10-character `admin_note` for detailed score updates. However, for fast-edits (where hole scores are omitted), `admin_note` is optional and defaults to `"Quick admin correction"`. If the frontend includes `admin_note: ""` (empty string), the backend's validation for min_length=10 fails, returning a 422 error.
+
+**Fix Applied:** Omitted `admin_note` from the request body during inline fast-edits when no admin note is entered, letting the backend handle the default value.
+
+**Affected Files:** `app/admin/players/[userId]/scores/page.js`
+
+**Test Added:** No
+
+**Tags:** [api] [admin] [scoring]
+
 
 

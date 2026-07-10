@@ -1,7 +1,8 @@
 'use client'
 
 import React from 'react'
-import { Settings } from 'lucide-react'
+import Link from 'next/link'
+import { Settings, Trophy } from 'lucide-react'
 
 export default function AdminClubRow({ club, onEdit }) {
   const { name, location, member_count, is_active } = club
@@ -25,13 +26,23 @@ export default function AdminClubRow({ club, onEdit }) {
         )}
       </td>
       <td className="py-3 px-4 text-center">
-        <button
-          onClick={() => onEdit(club)}
-          className="p-1.5 rounded-full hover:bg-off-white text-grey-mid hover:text-green-dark transition-colors cursor-pointer"
-          title="Edit Club Settings"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        <div className="flex justify-center space-x-1.5">
+          <Link href={`/admin/clubs/${club.id}/leaderboard`}>
+            <button
+              className="p-1.5 rounded-full hover:bg-off-white text-grey-mid hover:text-green-dark transition-colors cursor-pointer"
+              title="View Leaderboard"
+            >
+              <Trophy className="w-4 h-4" />
+            </button>
+          </Link>
+          <button
+            onClick={() => onEdit(club)}
+            className="p-1.5 rounded-full hover:bg-off-white text-grey-mid hover:text-green-dark transition-colors cursor-pointer"
+            title="Edit Club Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </td>
     </tr>
   )

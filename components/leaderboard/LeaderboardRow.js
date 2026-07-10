@@ -1,9 +1,12 @@
 'use client'
 
 import React from 'react'
+import { useRouter } from 'next/navigation'
 import Badge from '../ui/Badge'
 
-export default function LeaderboardRow({ entry, isCurrentUser }) {
+export default function LeaderboardRow({ entry, isCurrentUser, isAdminContext = false }) {
+  const router = useRouter()
+
   // Map rank to medal emojis for top 3
   const getRankIndicator = (rank) => {
     switch (rank) {
@@ -19,12 +22,22 @@ export default function LeaderboardRow({ entry, isCurrentUser }) {
   }
 
   // Highlight current user
-  const rowBg = isCurrentUser 
+  let rowBg = isCurrentUser 
     ? 'bg-green-light/45 hover:bg-green-light/60 font-semibold border-l-4 border-green-dark' 
     : 'hover:bg-off-white/80 border-l-4 border-transparent'
 
+  if (isAdminContext) {
+    rowBg += ' cursor-pointer'
+  }
+
+  const handleRowClick = () => {
+    if (isAdminContext) {
+      router.push(`/admin/players/${entry.user_id}/scores`)
+    }
+  }
+
   return (
-    <tr className={`border-b border-grey-light transition-colors ${rowBg}`}>
+    <tr onClick={handleRowClick} className={`border-b border-grey-light transition-colors ${rowBg}`}>
       {/* Rank column */}
       <td className="py-3 px-4 text-center w-12 font-medium">
         {getRankIndicator(entry.rank)}
@@ -46,6 +59,15 @@ export default function LeaderboardRow({ entry, isCurrentUser }) {
           </span>
         </div>
       </td>
+
+      {/* Admin Context only Total Shots column */}
+      {isAdminContext && (
+        <td className="py-3 px-4 text-center">
+          <span className="numeral-mono text-sm leading-none font-semibold text-black">
+            {entry.total_gross_shots}
+          </span>
+        </td>
+      )}
       
       {/* Points - Monospace Numeral Treatment */}
       <td className="py-3 px-4 text-center">
