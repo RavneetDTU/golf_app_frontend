@@ -10,7 +10,7 @@ import Input from '../../../../components/ui/Input'
 import Button from '../../../../components/ui/Button'
 import HoleScoreInput from '../../../../components/scores/HoleScoreInput'
 import useAuthStore from '../../../../store/useAuthStore'
-import { adminGetUsers, getClubs, adminAddScore } from '../../../../lib/api'
+import { adminGetUsers, getClubs, adminAddScore, adminSubmitQuickScore } from '../../../../lib/api'
 import { calculateRoundPoints } from '../../../../lib/stableford'
 import { COURSE_HOLES } from '../../../../lib/courseData'
 import { toast } from 'react-hot-toast'
@@ -39,6 +39,12 @@ export default function AdminAddScorePage() {
   const [handicap, setHandicap] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // Quick Score states
+  const [quickRoundNumber, setQuickRoundNumber] = useState('')
+  const [quickGrossShots, setQuickGrossShots] = useState('')
+  const [quickStablefordPoints, setQuickStablefordPoints] = useState('')
+  const [quickSubmitting, setQuickSubmitting] = useState(false)
 
   // Scores state (18 holes)
   const [holeScores, setHoleScores] = useState(
@@ -147,6 +153,75 @@ export default function AdminAddScorePage() {
     setSelectedPlayer(player)
     setPlayerSearchText('')
     setShowUsersDropdown(false)
+  }
+
+  const handleQuickSubmit = async (e) => {
+    if (e) e.preventDefault()
+
+    if (!selectedPlayer) {
+      toast.error('Please select a player.')
+      return
+    }
+    if (!selectedClubId) {
+      toast.error('Please select a golf club.')
+      return
+    }
+    if (!quickRoundNumber) {
+      toast.error('Please enter a round number.')
+      return
+    }
+    const rndNum = parseInt(quickRoundNumber, 10)
+    if (isNaN(rndNum) || rndNum < 1) {
+      toast.error('Round number must be 1 or greater.')
+      return
+    }
+    if (!quickGrossShots) {
+      toast.error('Please enter total shots.')
+      return
+    }
+    const shotsNum = parseInt(quickGrossShots, 10)
+    if (isNaN(shotsNum) || shotsNum <= 0) {
+      toast.error('Total shots must be greater than 0.')
+      return
+    }
+    if (quickStablefordPoints === '') {
+      toast.error('Please enter total Stableford points.')
+      return
+    }
+    const pointsNum = parseInt(quickStablefordPoints, 10)
+    if (isNaN(pointsNum) || pointsNum < 0) {
+      toast.error('Total Stableford points must be 0 or greater.')
+      return
+    }
+
+    setQuickSubmitting(true)
+    try {
+      const payload = {
+        player_id: selectedPlayer.id,
+        club_id: selectedClubId,
+        round_number: rndNum,
+        gross_shots: shotsNum,
+        stableford_points: pointsNum,
+      }
+      const response = await adminSubmitQuickScore(payload)
+      const data = response.data
+      
+      const actionWord = data.overwritten ? 'updated' : 'added'
+      toast.success(`Round ${rndNum} ${actionWord} for ${selectedPlayer.full_name}`)
+      
+      // Clear inputs
+      setQuickRoundNumber('')
+      setQuickGrossShots('')
+      setQuickStablefordPoints('')
+      
+      router.push('/admin/scores')
+    } catch (err) {
+      console.error('Failed to submit quick score:', err)
+      const detail = err.response?.data?.detail || err.response?.data?.message || 'Failed to submit quick score.'
+      toast.error(detail)
+    } finally {
+      setQuickSubmitting(false)
+    }
   }
 
   const handleNextStep = () => {
@@ -282,8 +357,12 @@ export default function AdminAddScorePage() {
 
         {/* STEP 1: Form details */}
         {step === 1 && (
-          <div className="max-w-xl">
+          <div className="max-w-xl space-y-8">
+            {/* Shared Selector Card: Player & Club */}
             <Card className="shadow-sm border border-grey-light p-6 md:p-8 space-y-5 bg-white">
+              <h2 className="text-base font-bold text-green-dark border-b border-grey-light pb-2 uppercase tracking-wider">
+                1. Select Player & Club
+              </h2>
               {/* Player selection (Searchable Dropdown) */}
               <div className="relative">
                 <label className="text-[10px] font-bold text-grey-mid uppercase tracking-wider block mb-1.5">
@@ -367,7 +446,59 @@ export default function AdminAddScorePage() {
                   </select>
                 )}
               </div>
+            </Card>
 
+            {/* QUICK SCORE CARD */}
+            <Card className="shadow-sm border border-[#2D6A4F]/30 bg-[#F8F9FA] p-6 md:p-8 space-y-5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-green-dark text-[#D8F3DC] text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-bl-lg">
+                ⚡ Quick score
+              </div>
+              <h2 className="text-base font-bold text-green-dark border-b border-grey-light pb-2 uppercase tracking-wider">
+                ⚡ Quick Score Entry
+              </h2>
+              <form onSubmit={handleQuickSubmit} className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <Input
+                    label="Round No."
+                    type="number"
+                    min="1"
+                    value={quickRoundNumber}
+                    onChange={(e) => setQuickRoundNumber(e.target.value)}
+                    placeholder="e.g. 1"
+                  />
+                  <Input
+                    label="Total Shots"
+                    type="number"
+                    min="1"
+                    value={quickGrossShots}
+                    onChange={(e) => setQuickGrossShots(e.target.value)}
+                    placeholder="e.g. 78"
+                  />
+                  <Input
+                    label="Total Points"
+                    type="number"
+                    min="0"
+                    value={quickStablefordPoints}
+                    onChange={(e) => setQuickStablefordPoints(e.target.value)}
+                    placeholder="e.g. 36"
+                  />
+                </div>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  loading={quickSubmitting}
+                  className="w-full flex items-center justify-center space-x-2 text-sm font-semibold py-2.5 h-10 bg-green-dark text-white rounded-[8px]"
+                >
+                  <span>Submit Quick Score</span>
+                </Button>
+              </form>
+            </Card>
+
+            {/* DETAILED SCORECARD FLOW CARD */}
+            <Card className="shadow-sm border border-grey-light p-6 md:p-8 space-y-5 bg-white">
+              <h2 className="text-base font-bold text-green-dark border-b border-grey-light pb-2 uppercase tracking-wider">
+                📝 Detailed Scorecard Flow
+              </h2>
               {/* Date selection */}
               <div>
                 <label className="text-[10px] font-bold text-grey-mid uppercase tracking-wider block mb-1.5">

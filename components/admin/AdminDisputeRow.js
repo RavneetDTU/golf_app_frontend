@@ -8,6 +8,7 @@ import { AlertCircle } from 'lucide-react'
 export default function AdminDisputeRow({ dispute, onResolve }) {
   const {
     id,
+    score_owner_name,
     player_name,
     raised_by_name,
     reason,
@@ -15,11 +16,12 @@ export default function AdminDisputeRow({ dispute, onResolve }) {
   } = dispute
 
   const isClosed = status === 'resolved' || status === 'dismissed'
+  const playerName = score_owner_name || player_name || 'Unknown Player'
 
   return (
     <tr className="border-b border-grey-light hover:bg-off-white/40 transition-colors">
       <td className="py-3 px-4 font-semibold text-black text-sm">
-        {player_name || 'Unknown Player'}
+        {playerName}
       </td>
       <td className="py-3 px-4 text-grey-mid text-sm">
         {raised_by_name || 'System'}

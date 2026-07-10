@@ -91,14 +91,10 @@ export default function AdminPage() {
     try {
       const response = await adminGetUsers(pageNum, searchStr)
       const data = response.data
-      const newUsers = data?.users || []
+      const newUsers = Array.isArray(data) ? data : []
       
-      if (append) {
-        setUsers((prev) => [...prev, ...newUsers])
-      } else {
-        setUsers(newUsers)
-      }
-      setHasMoreUsers(data?.has_more || false)
+      setUsers(newUsers)
+      setHasMoreUsers(false)
     } catch (e) {
       console.error('Failed to fetch users:', e)
       toast.error('Failed to load users.')
@@ -112,14 +108,10 @@ export default function AdminPage() {
     try {
       const response = await adminGetClubs(pageNum)
       const data = response.data
-      const newClubs = data?.clubs || []
+      const newClubs = Array.isArray(data) ? data : []
 
-      if (append) {
-        setClubs((prev) => [...prev, ...newClubs])
-      } else {
-        setClubs(newClubs)
-      }
-      setHasMoreClubs(data?.has_more || false)
+      setClubs(newClubs)
+      setHasMoreClubs(false)
     } catch (e) {
       console.error('Failed to fetch clubs:', e)
       toast.error('Failed to load clubs.')
@@ -128,12 +120,10 @@ export default function AdminPage() {
     }
   }, [])
 
-  const fetchDisputes = useCallback(async (filterVal) => {
+  const fetchDisputes = useCallback(async () => {
     setLoadingDisputes(true)
     try {
-      // Backend expects '' (empty string) for all disputes, otherwise the specific filter status
-      const statusParam = filterVal === 'all' ? '' : filterVal
-      const response = await adminGetDisputes(statusParam)
+      const response = await adminGetDisputes()
       setDisputes(response.data || [])
     } catch (e) {
       console.error('Failed to fetch disputes:', e)
@@ -173,11 +163,11 @@ export default function AdminPage() {
       setClubsPage(1)
       fetchClubs(1, false)
     } else if (activeTab === 'disputes') {
-      fetchDisputes(disputeFilter)
+      fetchDisputes()
     } else if (activeTab === 'stats') {
       fetchStats()
     }
-  }, [activeTab, disputeFilter, user, fetchClubs, fetchDisputes, fetchStats])
+  }, [activeTab, user, fetchClubs, fetchDisputes, fetchStats])
 
   // Stats auto-refresh every 60 seconds when on the stats tab
   useEffect(() => {
@@ -325,6 +315,14 @@ export default function AdminPage() {
       setSaving(false)
     }
   }
+
+  // Client-side filtering of disputes since the backend lists all disputes without filter support
+  const filteredDisputes = disputes.filter((d) => {
+    if (disputeFilter === 'all') return true
+    if (disputeFilter === 'open') return d.status === 'open'
+    if (disputeFilter === 'resolved') return d.status === 'resolved' || d.status === 'dismissed'
+    return true
+  })
 
   // Check auth immediately
   if (isLoading || !user || !user.is_admin) {
@@ -501,7 +499,7 @@ export default function AdminPage() {
 
             {loadingDisputes && disputes.length === 0 ? (
               <Skeleton variant="rect" className="h-48 w-full rounded-lg" />
-            ) : disputes.length === 0 ? (
+            ) : filteredDisputes.length === 0 ? (
               <EmptyState title="No Disputes" description={`No disputes found with status "${disputeFilter}".`} />
             ) : (
               <div className="overflow-x-auto border border-grey-light rounded-lg bg-white shadow-xs">
@@ -516,7 +514,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {disputes.map((d) => (
+                    {filteredDisputes.map((d) => (
                       <AdminDisputeRow
                         key={d.id}
                         dispute={d}
@@ -711,7 +709,7 @@ export default function AdminPage() {
               <div className="flex justify-between items-start mb-6 pb-3 border-b border-grey-light">
                 <div>
                   <h3 className="text-base font-bold text-black">Resolve Score Dispute</h3>
-                  <p className="text-xs text-grey-mid mt-0.5">Player: {selectedDispute.player_name}</p>
+                  <p className="text-xs text-grey-mid mt-0.5">Player: {selectedDispute.score_owner_name || selectedDispute.player_name || 'Unknown Player'}</p>
                 </div>
                 <button
                   onClick={() => setSelectedDispute(null)}

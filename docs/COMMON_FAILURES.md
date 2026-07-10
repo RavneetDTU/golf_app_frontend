@@ -214,5 +214,34 @@ Confirmed via live smoke test — correct field name is "shots".
 
 **Tags:** [api] [admin] [scoring]
 
+---
+
+## CF-014: Admin Panel Empty States — Mismatched Endpoint Response Shapes and Paths
+
+**Symptom:**
+* `/admin` → Stats tab shows Clubs: 1, Users: 86
+* `/admin` → Clubs tab shows "No Clubs — No golf clubs exist in the database"
+* `/admin` → Users tab shows "No Users Found — No users registered"
+* `/admin` → Disputes tab shows a "Failed to load disputes" error toast AND an empty state simultaneously
+
+**Root Cause:**
+1. **Response Shape Mismatch:** The backend endpoints `/admin/clubs` and `/admin/users` return JSON arrays directly (e.g. `list[AdminClubResponse]`), not paginated envelope objects. The frontend code was incorrectly checking for `data?.clubs` and `data?.users` which resolved to `undefined` (and defaulted to `[]`), causing the silent empty states.
+2. **Endpoint Mismatch:** The disputes routing on the backend is registered at root `/disputes`, but the API helper was calling `/admin/disputes`, resulting in a `404 Not Found` error. This triggered the toast error while leaving the list empty (`[]`), rendering both states at once.
+3. **Property Mismatch:** The backend dispute schema returns `score_owner_name`, but the dispute list row was destructuring `player_name`, resulting in "Unknown Player" headers.
+
+**Fix Applied:**
+* Updated `lib/api.js` to call `GET /disputes` for `adminGetDisputes`.
+* Updated `app/admin/page.js` to process arrays directly for Users/Clubs, disabled invalid client pagination, and implemented client-side status filtering for disputes.
+* Updated `components/admin/AdminDisputeRow.js` and the dispute resolution modal to read `score_owner_name`.
+
+**Affected Files:**
+* `lib/api.js`
+* `app/admin/page.js`
+* `components/admin/AdminDisputeRow.js`
+
+**Test Added:** No (verified manually)
+
+**Tags:** [api] [admin] [disputes] [clubs] [users]
+
 
 
